@@ -1,0 +1,4 @@
+*.nes
+*.cmake
+*_cache
+.vscode/tasks.json
