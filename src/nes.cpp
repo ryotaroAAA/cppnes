@@ -4,14 +4,14 @@ const int NES_HEADER_SIZE = 0x0010;
 const int PROGRAM_ROM_UNIT_SIZE = 0x4000;
 const int CHARACTER_ROM_UNIT_SIZE = 0x2000;
 
-class cassette {
+class Cassette {
 private:
-    uint8_t *prg_rom;
-    uint8_t *chr_rom;
-    uint32_t prg_units;
-    uint32_t chr_units;
+    uint8_t *prog_rom;
+    uint8_t *char_rom;
+    uint8_t prog_units;
+    uint8_t char_units;
 public:
-    cassette(char* path){
+    Cassette(char* path){
         ifstream fin(path, ios::in|ios::binary);
         if (!fin){
             cout << path << " open failed!";
@@ -23,41 +23,38 @@ public:
         fin.seekg(0);
         // get rom size
         fin.seekg(4);
-        fin.read((char*)&prg_units, sizeof(uint8_t));
+        fin.read((char*)&prog_units, sizeof(uint8_t));
         fin.seekg(5);
-        fin.read((char*)&chr_units, sizeof(uint8_t));
-        dprint("prog_units : %d", prg_units);
-        // dprint("chr_units : %d", chr_units);
+        fin.read((char*)&char_units, sizeof(uint8_t));
+        dprint("prog_units : %d", prog_units);
+        dprint("char_units : %d", char_units);
         // read prg rom
-        uint32_t prg_size = (PROGRAM_ROM_UNIT_SIZE) * prg_units;
+        uint32_t prog_size = (PROGRAM_ROM_UNIT_SIZE) * prog_units;
+        dprint("prog_size : %d", prog_size);
         fin.seekg(NES_HEADER_SIZE);
-        prg_rom = new uint8_t[prg_size];
-        fin.read((char*)prg_rom, PROGRAM_ROM_UNIT_SIZE);
+        prog_rom = new uint8_t[prog_size];
+        fin.read((char*)prog_rom, PROGRAM_ROM_UNIT_SIZE);
         // read chr rom
-        uint32_t chr_size = (CHARACTER_ROM_UNIT_SIZE) * chr_units;
-        fin.seekg(NES_HEADER_SIZE + prg_size);
-        chr_rom = new uint8_t[chr_size];
-        fin.read((char*)chr_rom, chr_size);
-        // dprint("prog_size : %d", prg_size);
-        // dprint("chr_size : %d", chr_size);
+        uint32_t char_size = (CHARACTER_ROM_UNIT_SIZE) * char_units;
+        dprint("char_size : %d", char_size);
+        fin.seekg(NES_HEADER_SIZE + prog_size);
+        char_rom = new uint8_t[char_size];
+        fin.read((char*)char_rom, char_size);
+    }
+    uint8_t *get_prog_rom(){
+        return this->prog_rom;
+    }
+    uint8_t *get_char_rom(){
+        return this->char_rom;
     }
 };
 
 int main (int argc, char* argv[]) {
-    cassette data = cassette(argv[1]);
-    cpu cp = cpu();
-    cp.reset();
-    cout << "success" << endl;
+    Cassette cassette = Cassette(argv[1]);
+    Ram ram = Ram();
+    Cpu cpu = Cpu(ram, cassette.get_prog_rom());
+    cpu.reg_dump();
+    cpu.reset();
+    dprint("###");
     return 0;
 }
-
-
-// #include <cstdio>
-
-// #define DEBUG_LOG(msg, ...) std::printf("[debug] " msg "\n" __VA_OPT__(,) __VA_ARGS__)
-
-// int main()
-// {
-//   DEBUG_LOG("#");       // printf("[debug] hello\n"); に展開される
-//   DEBUG_LOG("value:%d", 3); // printf("[debug] value:%d\n", 3); に展開される
-// }

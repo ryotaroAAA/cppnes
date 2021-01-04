@@ -4,20 +4,22 @@
 #include <fstream>
 #include <iostream>
 #include <cstddef>
-#include <cstdint>
+#include <cstdlib> 
+#include <cstdio>
+#include <string.h>
 using namespace std;
 
-#define dprint(...) printf("[DEBUG] %s(%d) @ %s\n", __func__, __LINE__, __FILE__)
-// #define dprint(msg, ...) printf("ggg" msg "ggg\n" __VA_OPT__(,) __VA_ARGS__)
-// #define dprint(...) cout << "[debug] " << __VA_ARGS__ << "hoge" << endl
-const uint8_t CARRY = 0x00;
-const uint8_t ZERO = 0x01;
-const uint8_t RESERVED = 0x02;
-const uint8_t BREAK = 0x03;
-const uint8_t DECIMAL = 0x04;
-const uint8_t INTERRUPT = 0x05;
-const uint8_t OVERFLOW = 0x06;
-const uint8_t NEGATIVE = 0x07;
+#define dprint(msg, ...) printf("[DEBUG] " msg " %s(%d) @ %s\n", ##__VA_ARGS__  ,__func__, __LINE__, __FILE__)
+#define dump(msg, ...) printf("[DUMP] " msg "\n", ##__VA_ARGS__)
+
+const uint8_t CARRY = 1<<0;
+const uint8_t ZERO = 1<<1;
+const uint8_t RESERVED = 1<<2;
+const uint8_t BREAK = 1<<3;
+const uint8_t DECIMAL = 1<<4;
+const uint8_t INTERRUPT = 1<<5;
+const uint8_t OVER_FLOW = 1<<6;
+const uint8_t NEGATIVE = 1<<7;
 
 struct reg {
     uint8_t A;
@@ -37,12 +39,30 @@ const reg DEFAULT_REG = {
     0x0000
 };
 
-class cpu {
+class Ram {
 private:
-    reg reg;
+    uint8_t ram[0xFFFF];
 public:
-    cpu();
+    Ram();
     void reset();
+    uint8_t read(uint16_t addr);
+    void write(uint16_t addr, uint8_t data);
+};
+
+class Cpu {
+private:
+    struct reg reg;
+    Ram ram;
+    uint8_t *prog_rom;
+public:
+    Cpu(Ram ram, uint8_t *prog_rom);
+    void run();
+    void exec();
+    void reset();
+    uint8_t fetch();
+    void reg_dump();
+    uint8_t read(uint16_t addr);
+    void write(uint16_t addr, uint8_t data);
 };
 
 #endif //COMMON
