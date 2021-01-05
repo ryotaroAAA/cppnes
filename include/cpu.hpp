@@ -21,9 +21,9 @@ typedef struct {
     uint8_t P;
     uint16_t SP;
     uint16_t PC;
-} reg_t;
+} REG;
 
-const reg_t DEFAULT_REG = {
+const REG DEFAULT_REG = {
     0x00,
     0x00,
     0x00,
@@ -33,7 +33,7 @@ const reg_t DEFAULT_REG = {
 };
 
 // opecode
-enum OPECODE{
+typedef enum {
     // op
     ADC, SBC,
     // logical op
@@ -64,10 +64,10 @@ enum OPECODE{
     PHA, PLA, PHP, PLP,
     // No operation
     NOP,
-};
+} OPECODE;
 
 // addressing mode
-enum ADDR_MODE {
+typedef enum {
     IMPL,
     ACM,
     IMD,
@@ -81,47 +81,38 @@ enum ADDR_MODE {
     IND_X,
     IND_Y,
     ABS_IND,
-};
-
-enum READ_SIZE {
-    BYTE, WORD, NONE=0
-};
-
-typedef union {
-    uint8_t b_data;
-    uint16_t w_data;
-} DATA;
+} ADDR_MODE;
 
 typedef struct {
-    enum READ_SIZE size;
+    SIZE size;
     DATA data;
     uint8_t add_cycle;
-} operand_t;
+} OPERAND;
 
 typedef struct {
-    enum OPECODE opecode;
-    enum ADDR_MODE addr_mode;
+    OPECODE opecode;
+    ADDR_MODE addr_mode;
     uint8_t cycle;
-} opeset_t;
+} OPESET;
 
 class Cpu {
 private:
-    reg_t reg;
+    REG reg;
     Ram *ram;
     uint8_t *prog_rom;
 public:
     Cpu(Ram *ram, uint8_t *prog_rom);
     uint8_t run();
-    void exec(uint8_t opecode, operand_t operand);
-    void reset();
-    DATA fetch(enum READ_SIZE size);
-    void reg_dump();
+    void exec(uint8_t opecode, OPERAND operand);
+    DATA fetch(SIZE size);
     uint8_t pop();
     void push(uint8_t data);
-    uint8_t read(uint16_t addr);
-    void write(uint16_t addr, uint8_t data);
-    opeset_t get_opeset(uint8_t opecode);
-    operand_t get_operand(opeset_t opeset);
+    DATA read(uint16_t addr, SIZE size);
+    void write(uint16_t addr, DATA data);
+    OPESET get_opeset(uint8_t opecode);
+    OPERAND get_operand(OPESET opeset);
+    void reset();
+    void reg_dump();
 };
 
 #endif //CPU_H

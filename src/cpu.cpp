@@ -20,7 +20,7 @@ const int cycles[] = {
 };
 
 // opecode => opeset
-map<uint8_t, opeset_t> opeset_dic{
+map<uint8_t, OPESET> opeset_dic{
     // load, LDA
     {0xA9, {LDA, IMD, 1}},
     {0xA5, {LDA, ZPG, 1}},
@@ -212,12 +212,12 @@ Cpu::Cpu(Ram *ram, uint8_t *prog_rom){
     dprint("CPU construct");
 }
 
-DATA Cpu::fetch(enum READ_SIZE size){
+DATA Cpu::fetch(SIZE size){
     DATA data;
     if (size == BYTE) {
-        data.b_data = this->read(this->reg.PC);
+        return this->read(this->reg.PC);
     } else if (size == WORD) {
-        data.w_data = this->read(this->reg.PC++);
+        return this->read(this->reg.PC);
     } else if (size == NONE) {
         // dummy
     } else {
@@ -256,15 +256,18 @@ void Cpu::reg_dump(){
 
 uint8_t Cpu::pop(){
     this->reg.SP++;
-    return this->read(0x100 | (this->reg.SP & 0xFF));
+    return this->read(0x100 | (this->reg.SP & 0xFF), BYTE).b_data;
 }
 
 void Cpu::push(uint8_t data){
-    this->write(0x100 | (this->reg.SP & 0xFF), data);
+    DATA _data;
+    _data.b_data = data;
+    this->write(0x100 | (this->reg.SP & 0xFF), _data, BYTE);
     this->reg.SP--;
 }
 
-uint8_t Cpu::read(uint16_t addr){
+DATA Cpu::read(uint16_t addr, SIZE size){
+    DATA d;
     if (addr < 0x0800) {
         // Ram
         return this->ram->read(addr);
@@ -290,13 +293,13 @@ uint8_t Cpu::read(uint16_t addr){
     }
 }
 
-void Cpu::write(uint16_t addr, uint8_t data){
+void Cpu::write(uint16_t addr, DATA data){
     if (addr < 0x0800) {
         // Ram
-        this->ram->write(addr, data);
+        this->ram->write(addr, data.b_data);
     } else if (addr < 0x2000) {
         // mirror
-        this->ram->write(addr - 0x0800, data);
+        this->ram->write(addr - 0x0800, data.b_data);
     } else if (addr < 0x2008) {
         // PPU
     } else if (addr >= 0x4000 && addr < 0x4020) {
@@ -315,12 +318,12 @@ void Cpu::write(uint16_t addr, uint8_t data){
     }
 }
 
-opeset_t Cpu::get_opeset(uint8_t opecode){
+OPESET Cpu::get_opeset(uint8_t opecode){
     return opeset_dic[opecode];
 }
 
-operand_t Cpu::get_operand(opeset_t opeset){
-    operand_t operand = {};
+OPERAND Cpu::get_operand(OPESET opeset){
+    OPERAND operand = {};
     // opesetからswitchしてoperand作る
     // runtimeのregみてcycle変えるので
     // typedef struct {
@@ -356,14 +359,14 @@ operand_t Cpu::get_operand(opeset_t opeset){
     return operand;
 }
 
-void Cpu::exec(uint8_t opecode, operand_t operand){
+void Cpu::exec(uint8_t opecode, OPERAND operand){
 
 }
 
 uint8_t Cpu::run(){
-    uint8_t opecode = this->fetch();
-    opeset_t opeset = get_opeset(opecode);
-    operand_t operand = get_operand(opeset);
+    uint8_t opecode = this->fetch(BYTE).b_data;
+    OPESET opeset = get_opeset(opecode);
+    OPERAND operand = get_operand(opeset);
     this->exec(opecode, operand);
     return opeset.cycle + operand.add_cycle;
 }
