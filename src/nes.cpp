@@ -52,7 +52,7 @@ public:
 int main (int argc, char* argv[]) {
     Cassette cassette = Cassette(argv[1]);
     Ram ram = Ram();
-    Cpu cpu = Cpu(ram, cassette.get_prog_rom());
+    Cpu cpu = Cpu(&ram, cassette.get_prog_rom());
     cpu.reg_dump();
     cpu.reset();
     dprint("###");

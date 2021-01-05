@@ -1,6 +1,6 @@
 #include "../include/common.hpp"
 
-Cpu::Cpu(Ram ram, uint8_t *prog_rom){
+Cpu::Cpu(Ram *ram, uint8_t *prog_rom){
     this->prog_rom = prog_rom;
     this->ram = ram;
     this->reg = DEFAULT_REG;
@@ -41,10 +41,10 @@ void Cpu::reg_dump(){
 uint8_t Cpu::read(uint16_t addr){
     if (addr < 0x0800) {
         // Ram
-        return this->ram.read(addr);
+        return this->ram->read(addr);
     } else if (addr < 0x2000) {
         // mirror
-        return this->ram.read(addr - 0x0800);
+        return this->ram->read(addr - 0x0800);
     } else if (addr < 0x2008) {
         // PPU
         // TODO
@@ -67,10 +67,10 @@ uint8_t Cpu::read(uint16_t addr){
 void Cpu::write(uint16_t addr, uint8_t data){
     if (addr < 0x0800) {
         // Ram
-        this->ram.write(addr, data);
+        this->ram->write(addr, data);
     } else if (addr < 0x2000) {
         // mirror
-        this->ram.write(addr - 0x0800, data);
+        this->ram->write(addr - 0x0800, data);
     } else if (addr < 0x2008) {
         // PPU
     } else if (addr >= 0x4000 && addr < 0x4020) {
@@ -87,4 +87,20 @@ void Cpu::write(uint16_t addr, uint8_t data){
         dprint("invalid path!");
         exit(1);
     }
+}
+
+opeset_t Cpu::get_opeset(uint8_t opecode){
+
+}
+
+operand_t Cpu::get_operand(opeset_t opeset){
+    
+}
+
+uint8_t Cpu::run(){
+    uint8_t opecode = this->fetch();
+    opeset_t opeset = get_opeset(opecode);
+    operand_t operand = get_operand(opeset);
+    this->exec(opecode, operand);
+    return opecode.cycle + operand.add_cycle;
 }
