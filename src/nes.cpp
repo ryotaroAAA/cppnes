@@ -1,4 +1,6 @@
 #include "../include/common.hpp"
+#include "../include/cpu.hpp"
+#include "../include/ram.hpp"
 
 const int NES_HEADER_SIZE = 0x0010;
 const int PROGRAM_ROM_UNIT_SIZE = 0x4000;

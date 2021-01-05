@@ -1,4 +1,4 @@
-#include "../include/common.hpp"
+#include "../include/ram.hpp"
 
 Ram::Ram(){
     dprint("Ram construct");

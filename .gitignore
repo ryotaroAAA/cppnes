@@ -2,3 +2,9 @@
 *.cmake
 *_cache
 .vscode/tasks.json
+a.bat
+b.bat
+CMakeCache.txt
+Makefile
+nes.o
+CMakeFiles/*
