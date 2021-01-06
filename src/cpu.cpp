@@ -215,9 +215,11 @@ Cpu::Cpu(Ram *ram, uint8_t *prog_rom){
 DATA Cpu::fetch(SIZE size){
     DATA data;
     if (size == BYTE) {
-        return this->read(this->reg.PC);
+        data.b_data = this->read(this->reg.PC, BYTE).b_data;
+        this->reg.PC++;
     } else if (size == WORD) {
-        return this->read(this->reg.PC);
+        data.w_data = this->read(this->reg.PC, WORD).w_data;
+        this->reg.PC += 2;
     } else if (size == NONE) {
         // dummy
     } else {
@@ -239,19 +241,24 @@ void Cpu::reg_dump(){
     dump("X : %d", this->reg.X);
     dump("Y : %d", this->reg.Y);
     dump("P : %d", this->reg.P);
-    if (this->reg.P) printf("[DUMP][REG_STATUS] ");
-    if (this->reg.P & CARRY) printf("CARRY ");
-    if (this->reg.P & ZERO) printf("ZERO ");
-    if (this->reg.P & RESERVED) printf("RESERVED ");
-    if (this->reg.P & BREAK) printf("BREAK ");
-    if (this->reg.P & DECIMAL) printf("DECIMAL ");
-    if (this->reg.P & INTERRUPT) printf("INTERRUPT ");
-    if (this->reg.P & OVER_FLOW) printf("OVER_FLOW ");
-    if (this->reg.P & NEGATIVE) printf("NEGATIVE ");
-    if (this->reg.P) printf("\n");
+    printf("[DUMP][REG_STATUS] ");
+    if (this->reg.P.carry) printf("CARRY ");
+    if (this->reg.P.zero) printf("ZERO ");
+    if (this->reg.P.reserved) printf("RESERVED ");
+    if (this->reg.P.brk) printf("BREAK ");
+    if (this->reg.P.decimal) printf("DECIMAL ");
+    if (this->reg.P.interrupt) printf("INTERRUPT ");
+    if (this->reg.P.overflow) printf("OVER_FLOW ");
+    if (this->reg.P.negative) printf("NEGATIVE ");
+    printf("\n");
     dump("SP : %d", this->reg.SP);
     dump("PC : %d", this->reg.PC);
     dump("##############");
+}
+
+void Cpu::branch(uint16_t addr){
+    this->reg.PC = addr;
+    this->has_branched = true;
 }
 
 uint8_t Cpu::pop(){
@@ -262,12 +269,58 @@ uint8_t Cpu::pop(){
 void Cpu::push(uint8_t data){
     DATA _data;
     _data.b_data = data;
-    this->write(0x100 | (this->reg.SP & 0xFF), _data, BYTE);
+    this->write(0x100 | (this->reg.SP & 0xFF), _data);
     this->reg.SP--;
 }
 
+void Cpu::pop_PC(){
+    this->reg.PC = this->pop();
+    this->reg.PC += (this->pop() << 8);
+}
+
+void Cpu::push_reg_status(){
+    uint8_t status = 
+        (!!this->reg.P.carry) |
+        (!!this->reg.P.zero << 1) |
+        (!!this->reg.P.reserved << 2) |
+        (!!this->reg.P.brk << 3) |
+        (!!this->reg.P.decimal << 4) |
+        (!!this->reg.P.interrupt << 5) |
+        (!!this->reg.P.overflow << 6) |
+        (!!this->reg.P.negative << 7);
+    this->push(status);
+}
+
+void Cpu::pop_reg_status(){
+    uint8_t status = this->pop();
+    this->reg.P.carry = !!(status & (1<<0));
+    this->reg.P.zero = !!(status & (1<<1));
+    this->reg.P.reserved = !!(status & (1<<2));
+    this->reg.P.brk = !!(status & (1<<3));
+    this->reg.P.decimal = !!(status & (1<<4));
+    this->reg.P.interrupt = !!(status & (1<<5));
+    this->reg.P.overflow = !!(status & (1<<6));
+    this->reg.P.negative = !!(status & (1<<7));
+}
+
 DATA Cpu::read(uint16_t addr, SIZE size){
-    DATA d;
+    DATA data;
+    addr &= 0xFFFF;
+    if (size == WORD) {
+        data.w_data = this->read_(addr) | (this->read_(addr + 1) << 8);
+    } else if (size == BYTE) {
+        data.b_data = this->read_(addr);
+    } else if (size == NONE) {
+        // dummy
+    } else {
+        // invalid
+        dprint("invalid path!");
+        exit(1);
+    }
+    return data;
+}
+
+uint8_t Cpu::read_(uint16_t addr){
     if (addr < 0x0800) {
         // Ram
         return this->ram->read(addr);
@@ -324,49 +377,403 @@ OPESET Cpu::get_opeset(uint8_t opecode){
 
 OPERAND Cpu::get_operand(OPESET opeset){
     OPERAND operand = {};
-    // opesetからswitchしてoperand作る
-    // runtimeのregみてcycle変えるので
-    // typedef struct {
-    //     enum OPERAND_SIZE size;
-    //     union OPERAND {
-    //         uint8_t byte;
-    //         uint16_t word;
-    //     } operand;
-    //     uint8_t add_cycle;
-    // } operand_t;
     switch(opeset.addr_mode){
         case ACM:
         case IMPL:
             // dummy
-            return operand;
+            break;
         case IMD:
         case ZPG: {
             operand.data = this->fetch(BYTE); 
             operand.size = BYTE;
-            return operand;
+            break;
         }
-        case REL:
-        
-        case ZPG_X:
-        case ZPG_Y:
-        case ABS:
-        case ABS_X:
-        case ABS_Y:
-        case IND_X:
-        case IND_Y:
-        case ABS_IND:
+        case REL: {
+            uint8_t reladdr = this->fetch(BYTE).b_data; 
+            operand.data.w_data = (reladdr < 0x80)?
+                reladdr + this->reg.PC:
+                reladdr + this->reg.PC - 0xFF; 
+            operand.size = BYTE;
+            operand.add_cycle = 
+                (operand.data.b_data & 0xFF00 != this->reg.PC & 0xFF00) ? 1 : 0;
+            break;
+        }
+        case ZPG_X: {
+            operand.data.b_data = 
+                (this->reg.X + this->fetch(BYTE).b_data) & 0xFF; 
+            operand.size = BYTE;
+            break;
+        }
+        case ZPG_Y: {
+            operand.data.b_data = 
+                (this->reg.Y + this->fetch(BYTE).b_data) & 0xFF; 
+            operand.size = BYTE;
+            break;
+        }
+        case ABS: {
+            operand.data = this->fetch(WORD); 
+            operand.size = WORD;
+            break;
+        }
+        case ABS_X: {
+            operand.data.w_data = 
+                (this->reg.X + this->fetch(WORD).w_data) & 0xFFFF; 
+            operand.size = WORD;
+            operand.add_cycle = 
+                (operand.data.w_data != this->reg.X & 0xFF00) ? 1 : 0;
+            break;
+        }
+        case ABS_Y: {
+            operand.data.w_data = 
+                (this->reg.X + this->fetch(WORD).w_data) & 0xFFFF; 
+            operand.size = WORD;
+            operand.add_cycle = 
+                (operand.data.w_data != this->reg.Y & 0xFF00) ? 1 : 0;
+            break;
+        }
+        case IND_X:{
+            uint8_t base = (this->fetch(BYTE).b_data + this->reg.X) & 0xFF;
+            operand.data.w_data = this->read(base, BYTE).b_data +
+                (this->read(base + 1, BYTE).b_data << 8); 
+            operand.size = WORD;
+            operand.add_cycle = 
+                (operand.data.w_data & 0xFF00 != base & 0xFF00) ? 1 : 0;
+            break;
+        }
+        case IND_Y:{
+            uint16_t base = this->fetch(BYTE).b_data; 
+            base = this->read(base + 1, BYTE).b_data +
+                (this->read(base, BYTE).b_data << 8) + this->reg.Y;
+            operand.data.w_data = base + this->reg.Y;
+            operand.size = WORD;
+            operand.add_cycle = 
+                (operand.data.w_data & 0xFF00 != base & 0xFF00) ? 1 : 0;
+            break;
+        }
+        case ABS_IND:{
+            uint16_t base = this->fetch(BYTE).b_data; 
+            base = this->read(base + 1, BYTE).b_data +
+                (this->read(base, BYTE).b_data << 8) + this->reg.Y;
+            operand.data.w_data = base + this->reg.Y;
+            operand.size = WORD;
+            operand.add_cycle = 
+                (operand.data.w_data & 0xFF00 != base & 0xFF00) ? 1 : 0;
+            break;
+        }
+        default:{
+            dprint("invalid!");
+            exit(1);
+        }
     }
     return operand;
 }
 
-void Cpu::exec(uint8_t opecode, OPERAND operand){
+void Cpu::set_reg_zero_neg(uint8_t result){
+    this->reg.P.negative = !!(result & 0x80);
+    this->reg.P.zero = !result;
+}
 
+void Cpu::exec(OPESET opeset, OPERAND operand){
+    this->has_branched = false;
+    ADDR_MODE mode = opeset.addr_mode;
+    DATA data = operand.data;
+    switch(opeset.opecode){
+        // load
+        case LDA : {
+            this->reg.A = (mode == IMD)?
+                data.b_data : this->read(data.w_data, BYTE).b_data;
+            this->set_reg_zero_neg(this->reg.A);
+            break;
+        }
+        case LDX : {
+            this->reg.X = (mode == IMD)?
+                data.b_data : this->read(data.w_data, BYTE).b_data;
+            this->set_reg_zero_neg(this->reg.X);
+            break;
+        }
+        case LDY : {
+            this->reg.Y = (mode == IMD)?
+                data.b_data : this->read(data.w_data, BYTE).b_data;
+            this->set_reg_zero_neg(this->reg.Y);
+            break;
+        }
+        // store
+        case STA : {
+            DATA _data;
+            _data.b_data = this->reg.A;
+            this->write(data.b_data, _data);
+            break;
+        }
+        case STX : {
+            DATA _data;
+            _data.b_data = this->reg.X;
+            this->write(data.b_data, _data);
+            break;
+        }
+        case STY : {
+            DATA _data;
+            _data.b_data = this->reg.Y;
+            this->write(data.b_data, _data);
+            break;
+        }
+        // transfer
+        case TAX : {
+            this->reg.X = this->reg.A;
+            this->set_reg_zero_neg(this->reg.X);
+            break;
+        }
+        case TAY : {
+            this->reg.Y = this->reg.A;
+            this->set_reg_zero_neg(this->reg.Y);
+            break;
+        }
+        case TSX : {
+            this->reg.X = this->reg.SP & 0xFF;
+            this->set_reg_zero_neg(this->reg.X);
+            break;
+        }
+        case TXA : {
+            this->reg.A = this->reg.X;
+            this->set_reg_zero_neg(this->reg.A);
+            break;
+        }
+        case TXS : {
+            this->reg.SP = this->reg.X + 0x0100;
+            break;
+        }
+        case TYA : {
+            this->reg.A = this->reg.Y;
+            this->set_reg_zero_neg(this->reg.A);
+            break;
+        }
+        // op
+        case ADC : {
+            uint8_t _data = (mode == IMD)?
+                data.b_data : this->read(data.w_data, BYTE).b_data;
+            uint16_t temp = this->reg.A + _data + this->reg.P.carry;
+            this->reg.P.carry = temp > 0xFF;
+            // TODO
+            this->reg.P.overflow = (!(((this->reg.A ^ _data) & 0x80) != 0) &&
+                (((this->reg.A ^ temp) & 0x80)) != 0);
+            this->set_reg_zero_neg(temp);
+            this->reg.A = temp & 0xFF;
+            break;
+        }
+        case AND : {
+            uint8_t _data = (mode == IMD)?
+                data.b_data : this->read(data.w_data, BYTE).b_data;
+            this->reg.A &= _data;
+            this->set_reg_zero_neg(this->reg.A);
+            break;
+        }
+        case ASL : {
+            if (mode == ACM) {
+                uint16_t _data = this->reg.A;
+                this->reg.P.carry = !!(_data & 0x80);
+                this->reg.A = (_data << 1) & 0xFF;
+                this->set_reg_zero_neg(this->reg.A);
+            } else {
+                uint16_t _data = this->read(data.w_data, BYTE).b_data;
+                this->reg.P.carry = !!(_data & 0x80);
+                _data = (_data << 1) & 0xFF;
+                DATA temp;
+                temp.w_data = _data;
+                this->write(data.w_data, temp);
+                this->set_reg_zero_neg(_data);
+            }
+            break;
+        }
+        case BIT : {
+            uint8_t _data = this->read(data.w_data, BYTE).b_data;
+            this->reg.P.overflow = !!(_data & 0x40);
+            this->reg.P.negative = !!(_data & 0x80);
+            this->reg.P.zero = !(this->reg.A & _data);
+        }
+        case CMP : {
+            uint8_t _data = (mode == IMD)?
+                data.b_data : this->read(data.w_data, BYTE).b_data;
+            int comp = this->reg.A - _data;
+            this->reg.P.carry = (comp >= 0);
+            this->set_reg_zero_neg(comp);
+            break;
+        }
+        case CPX : {
+            uint8_t _data = (mode == IMD)?
+                data.b_data : this->read(data.w_data, BYTE).b_data;
+            int comp = this->reg.X - _data;
+            this->reg.P.carry = (comp >= 0);
+            this->set_reg_zero_neg(comp);
+            break;
+        }
+        case CPY : {
+            uint8_t _data = (mode == IMD)?
+                data.b_data : this->read(data.w_data, BYTE).b_data;
+            int comp = this->reg.Y - _data;
+            this->reg.P.carry = (comp >= 0);
+            this->set_reg_zero_neg(comp);
+            break;
+        }
+        case DEC : {
+            uint8_t _data = this->read(data.w_data, BYTE).b_data - 1;
+            DATA temp;
+            temp.w_data = _data;
+            this->write(data.w_data, temp);
+            this->set_reg_zero_neg(_data);
+            break;
+        }
+        case DEX : {
+            this->reg.X--;
+            this->set_reg_zero_neg(this->reg.X);
+            break;
+        }
+        case DEY : {
+            this->reg.Y--;
+            this->set_reg_zero_neg(this->reg.Y);
+            break;
+        }
+        case EOR : {
+            uint8_t _data = (mode == IMD)?
+                data.b_data : this->read(data.w_data, BYTE).b_data;
+            this->reg.A ^= _data;
+            this->set_reg_zero_neg(this->reg.A);
+            break;
+        }
+        case INC : {
+            uint8_t _data = this->read(data.w_data, BYTE).b_data + 1;
+            DATA temp;
+            temp.w_data = _data;
+            this->write(data.w_data, temp);
+            this->set_reg_zero_neg(_data);
+            break;
+        }
+        case INX : {
+            this->reg.X++;
+            this->set_reg_zero_neg(this->reg.X);
+            break;
+        }
+        case INY : {
+            this->reg.Y++;
+            this->set_reg_zero_neg(this->reg.Y);
+            break;
+        }
+        case LSR : {}
+        case ORA : {}
+        case ROL : {}
+        case ROR : {}
+        case SBC : {}
+        case PHA : {
+            this->push(this->reg.A);
+        }
+        case PHP : {}
+        case PLA : {}
+        case PLP : {}
+        case JMP : {
+            this->reg.PC = data.w_data;
+            break;
+        }
+        case JSR : {}
+        case RTS : {}
+        case RTI : {}
+        case BCC : {
+            if (!this->reg.P.carry) {
+                this->branch(data.w_data);
+            }
+            break;
+        }
+        case BCS : {
+            if (this->reg.P.carry) {
+                this->branch(data.w_data);
+            }
+            break;
+        }
+        case BEQ : {
+            if (this->reg.P.zero) {
+                this->branch(data.w_data);
+            }
+            break;
+        }
+        case BMI : {
+            if (this->reg.P.negative) {
+                this->branch(data.w_data);
+            }
+            break;
+        }
+        case BNE : {
+            if (!this->reg.P.zero) {
+                this->branch(data.w_data);
+            }
+            break;
+        }
+        case BPL : {
+            if (!this->reg.P.negative) {
+                this->branch(data.w_data);
+            }
+            break;
+        }
+        case BVS : {
+            if (this->reg.P.overflow) {
+                this->branch(data.w_data);
+            }
+            break;
+        }
+        case BVC : {
+            if (!this->reg.P.overflow) {
+                this->branch(data.w_data);
+            }
+            break;
+        }
+        case CLD : {
+            this->reg.P.decimal = 0;
+            break;
+        }
+        case CLC : {
+            this->reg.P.carry = 0;
+            break;
+        }
+        case CLI : {
+            this->reg.P.interrupt = 0;
+            break;
+        }
+        case CLV : {
+            this->reg.P.overflow = 0;
+            break;
+        }
+        case SEC : {
+            this->reg.P.carry = 1;
+            break;
+        }
+        case SEI : {
+            this->reg.P.interrupt = 1;
+            break;
+        }
+        case SED : {
+            this->reg.P.decimal = 1;
+            break;
+        }
+        case BRK : {
+            // TODO
+        }
+        case NOP : {
+            break;
+        }
+        // TODO:unofficial
+        // case NOPD : {}
+        // case NOPI : {}
+        // case LAX : {}
+        // case SAX : {}
+        // case DCP : {}
+        // case ISB : {}
+        // case SLO : {}
+        // case RLA : {}
+        // case SRE : {}
+        // case RRA : {} 
+    }
 }
 
 uint8_t Cpu::run(){
     uint8_t opecode = this->fetch(BYTE).b_data;
     OPESET opeset = get_opeset(opecode);
     OPERAND operand = get_operand(opeset);
-    this->exec(opecode, operand);
+    this->exec(opeset, operand);
     return opeset.cycle + operand.add_cycle;
 }
