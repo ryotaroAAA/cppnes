@@ -114,10 +114,11 @@ public:
     DATA fetch(SIZE size);
     void branch(uint16_t addr);
     uint8_t pop();
-    void push(uint8_t data);
     void pop_PC();
-    void push_reg_status();
     void pop_reg_status();
+    void push(uint8_t data);
+    void push_PC();
+    void push_reg_status();
     DATA read(uint16_t addr, SIZE size);
     uint8_t read_(uint16_t addr);
     void write(uint16_t addr, DATA data);

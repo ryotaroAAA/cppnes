@@ -8,3 +8,6 @@ CMakeCache.txt
 Makefile
 nes.o
 CMakeFiles/*
+test_cmake
+nes
+a.sh

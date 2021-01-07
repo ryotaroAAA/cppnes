@@ -20,7 +20,7 @@ const int cycles[] = {
 };
 
 // opecode => opeset
-map<uint8_t, OPESET> opeset_dic{
+static map<uint8_t, OPESET> opeset_dic {
     // load, LDA
     {0xA9, {LDA, IMD, 1}},
     {0xA5, {LDA, ZPG, 1}},
@@ -278,6 +278,11 @@ void Cpu::pop_PC(){
     this->reg.PC += (this->pop() << 8);
 }
 
+void Cpu::push_PC(){
+    this.push((this->reg.PC >> 8) & 0xFF);
+    this.push(this->reg.PC & 0xFF);
+}
+
 void Cpu::push_reg_status(){
     uint8_t status = 
         (!!this->reg.P.carry) |
@@ -395,7 +400,7 @@ OPERAND Cpu::get_operand(OPESET opeset){
                 reladdr + this->reg.PC - 0xFF; 
             operand.size = BYTE;
             operand.add_cycle = 
-                (operand.data.b_data & 0xFF00 != this->reg.PC & 0xFF00) ? 1 : 0;
+                ((operand.data.w_data & 0xFF00) != (this->reg.PC & 0xFF00)) ? 1 : 0;
             break;
         }
         case ZPG_X: {
@@ -420,7 +425,7 @@ OPERAND Cpu::get_operand(OPESET opeset){
                 (this->reg.X + this->fetch(WORD).w_data) & 0xFFFF; 
             operand.size = WORD;
             operand.add_cycle = 
-                (operand.data.w_data != this->reg.X & 0xFF00) ? 1 : 0;
+                (operand.data.w_data != (this->reg.X & 0xFF00)) ? 1 : 0;
             break;
         }
         case ABS_Y: {
@@ -550,11 +555,13 @@ void Cpu::exec(OPESET opeset, OPERAND operand){
         case ADC : {
             uint8_t _data = (mode == IMD)?
                 data.b_data : this->read(data.w_data, BYTE).b_data;
-            uint16_t temp = this->reg.A + _data + this->reg.P.carry;
+            uint16_t temp = 
+                this->reg.A + _data + this->reg.P.carry;
             this->reg.P.carry = temp > 0xFF;
             // TODO
-            this->reg.P.overflow = (!(((this->reg.A ^ _data) & 0x80) != 0) &&
-                (((this->reg.A ^ temp) & 0x80)) != 0);
+            this->reg.P.overflow =
+                ((this->reg.A ^ _data) & 0x80) &&
+                !((this->reg.A ^ temp) & 0x80);
             this->set_reg_zero_neg(temp);
             this->reg.A = temp & 0xFF;
             break;
@@ -656,24 +663,111 @@ void Cpu::exec(OPESET opeset, OPERAND operand){
             this->set_reg_zero_neg(this->reg.Y);
             break;
         }
-        case LSR : {}
-        case ORA : {}
-        case ROL : {}
-        case ROR : {}
-        case SBC : {}
+        case LSR : {
+            if (mode == ACM) {
+                this->reg.P.carry = !!(this->reg.A & 0x01);
+                this->reg.A = this->reg.A >> 1;
+                this->reg.P.zero = !this->reg.A;
+            } else {
+                uint8_t _data = this->read(data.w_data, BYTE).b_data;
+                this->reg.P.carry = !!(_data & 0x01);
+                this->reg.P.zero = !(_data >> 1);
+                this->write(data.w_data, _data >> 1);
+            }
+            this->reg.P.negative = false;
+            break;
+        }
+        case ORA : {
+            uint8_t _data = (mode == IMD)?
+                data.b_data : this->read(data.w_data, BYTE).b_data;
+            this->reg.A |= _data;
+            this->set_reg_zero_neg(this->reg.A);
+            break;
+        }
+        case ROL : {
+            if (mode == ACM) {
+                this->reg.A = (this->reg.A << 1) | !!(this->reg.P.carry);
+                this->reg.P.carry = !!(this->reg.A & 0x80);
+                this->set_reg_zero_neg(this->reg.A);
+            } else {
+                uint8_t _data = this->read(data.w_data, BYTE).b_data;
+                uint8_t result = (_data << 1) | !!(this->reg.P.carry);
+                this->write(data.w_data, result);
+                this->reg.P.carry = !!(_data & 0x80);
+                this->set_reg_zero_neg(result);
+            }
+            this->reg.P.negative = false;
+            break;
+        }
+        case ROR : {
+            if (mode == ACM) {
+                this->reg.A = (this->reg.A >> 1) |
+                    (this->reg.P.carry) ? 0x80 : 0x00;
+                this->reg.P.carry = !!(this->reg.A & 0x01);
+                this->set_reg_zero_neg(this->reg.A);
+            } else {
+                uint8_t _data = this->read(data.w_data, BYTE).b_data;
+                uint8_t result = (_data >> 1) |
+                    (this->reg.P.carry) ? 0x80 : 0x00;
+                this->write(data.w_data, result);
+                this->reg.P.carry = !!(_data & 0x01);
+                this->set_reg_zero_neg(result);
+            }
+            break;
+        }
+        case SBC : {
+            uint8_t _data = (mode == IMD)?
+                data.b_data : this->read(data.w_data, BYTE).b_data;
+            uint16_t temp = 
+                this->reg.A - _data - !this->reg.P.carry;
+            if (_data != 0xFF){
+                this->reg.P.carry =
+                    this->reg.A >= (_data + !this->reg.P.carry);
+            } else {
+                this->reg.P.carry = false;
+            }
+            // TODO
+            this->reg.P.overflow =
+                ((this->reg.A ^ _data) & 0x80) &&
+                !((this->reg.A ^ temp) & 0x80);
+            this->set_reg_zero_neg(temp);
+            this->reg.A = temp & 0xFF;
+            break;
+        }
         case PHA : {
             this->push(this->reg.A);
         }
-        case PHP : {}
-        case PLA : {}
-        case PLP : {}
+        case PHP : {
+            this->reg.P.brk = true;
+            this->push_reg_status();
+        }
+        case PLA : {
+            this->reg.A = this->pop();
+            this->set_reg_zero_neg(this->reg.A);
+        }
+        case PLP : {
+            this->pop_reg_status();
+            this->reg.P.reserved = true;
+        }
         case JMP : {
             this->reg.PC = data.w_data;
             break;
         }
-        case JSR : {}
-        case RTS : {}
-        case RTI : {}
+        case JSR : {
+            uint16_t pc = this->reg.PC - 1;
+            this->push((pc >> 8) & 0xFF);
+            this->push(pc & 0xFF);
+            this->reg.PC = data.w_data;
+        }
+        case RTS : {
+            this->pop_PC();
+            this->reg.PC++;
+        }
+        case RTI : {
+            this->pop_reg_status();
+            this->pop_PC();
+            this->reg.P.reserved = true;
+        }
         case BCC : {
             if (!this->reg.P.carry) {
                 this->branch(data.w_data);
@@ -751,7 +845,15 @@ void Cpu::exec(OPESET opeset, OPERAND operand){
             break;
         }
         case BRK : {
-            // TODO
+            this->reg.PC++;
+            this.push_PC();
+            this.push_reg_status();
+            if (!this->reg.P.interrupt){
+                this->reg.PC = this->read(0xFFFE, WORD);
+            }
+            this->reg.P.interrupt = true;
+            this->reg.PC--;
+            break;
         }
         case NOP : {
             break;
