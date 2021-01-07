@@ -1,6 +1,6 @@
 #include "../include/cpu.hpp"
 
-const int cycles[] = {
+const uint8_t cycles[] = {
   /*0x00*/ 7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
   /*0x10*/ 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 6, 7,
   /*0x20*/ 6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6,
@@ -19,194 +19,210 @@ const int cycles[] = {
   /*0xF0*/ 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
 };
 
+map<ADDR_MODE, const char*> addrmode_dic{
+    {IMPL, "IMPL"}, 
+    {ACM, "ACM"}, 
+    {IMD, "IMD"}, 
+    {ZPG, "ZPG"}, 
+    {ZPG_X, "ZPG_X"}, 
+    {ZPG_Y, "ZPG_Y"}, 
+    {ABS, "ABS"}, 
+    {ABS_X, "ABS_X"}, 
+    {ABS_Y, "ABS_Y"}, 
+    {REL, "REL"}, 
+    {IND_X, "IND_X"}, 
+    {IND_Y, "IND_Y"}, 
+    {ABS_IND, "ABS_IND"}
+};
+
 // opecode => opeset
-static map<uint8_t, OPESET> opeset_dic {
+map<uint8_t, OPESET> opeset_dic {
     // load, LDA
-    {0xA9, {LDA, IMD, cycles[0xA9]}},
-    {0xA5, {LDA, ZPG, cycles[0xA5]}},
-    {0xAD, {LDA, ABS, cycles[0xAD]}},
-    {0xB5, {LDA, ZPG_X, cycles[0xB5]}},
-    {0xBD, {LDA, ABS_X, cycles[0xBD]}},
-    {0xB9, {LDA, ABS_Y, cycles[0x89]}},
-    {0xA1, {LDA, IND_X, cycles[0xA1]}},
-    {0xB1, {LDA, IND_Y, cycles[0xB1]}},
+    {0xA9, {LDA, "LDA", IMD, cycles[0xA9]}},
+    {0xA5, {LDA, "LDA", ZPG, cycles[0xA5]}},
+    {0xAD, {LDA, "LDA", ABS, cycles[0xAD]}},
+    {0xB5, {LDA, "LDA", ZPG_X, cycles[0xB5]}},
+    {0xBD, {LDA, "LDA", ABS_X, cycles[0xBD]}},
+    {0xB9, {LDA, "LDA", ABS_Y, cycles[0x89]}},
+    {0xA1, {LDA, "LDA", IND_X, cycles[0xA1]}},
+    {0xB1, {LDA, "LDA", IND_Y, cycles[0xB1]}},
     // load, LDX
-    {0xA2, {LDX, IMD, cycles[0xA2]}},
-    {0xA6, {LDX, ZPG, cycles[0xA6]}},
-    {0xAE, {LDX, ABS, cycles[0xAE]}},
-    {0xB6, {LDX, ZPG_Y, cycles[0xB6]}},
-    {0xBE, {LDX, ABS_Y, cycles[0xBE]}},
+    {0xA2, {LDX, "LDX", IMD, cycles[0xA2]}},
+    {0xA6, {LDX, "LDX", ZPG, cycles[0xA6]}},
+    {0xAE, {LDX, "LDX", ABS, cycles[0xAE]}},
+    {0xB6, {LDX, "LDX", ZPG_Y, cycles[0xB6]}},
+    {0xBE, {LDX, "LDX", ABS_Y, cycles[0xBE]}},
     // load, LDY
-    {0xA0, {LDY, IMD, cycles[0xA0]}},
-    {0xA4, {LDY, ZPG, cycles[0xA4]}},
-    {0xAC, {LDY, ABS, cycles[0xAC]}},
-    {0xB4, {LDY, ZPG_X, cycles[0xB4]}},
-    {0xBC, {LDY, ABS_X, cycles[0xBC]}},
+    {0xA0, {LDY, "LDY", IMD, cycles[0xA0]}},
+    {0xA4, {LDY, "LDY", ZPG, cycles[0xA4]}},
+    {0xAC, {LDY, "LDY", ABS, cycles[0xAC]}},
+    {0xB4, {LDY, "LDY", ZPG_X, cycles[0xB4]}},
+    {0xBC, {LDY, "LDY", ABS_X, cycles[0xBC]}},
     // store, STA
-    {0x85, {STA, ZPG, cycles[0x85]}},
-    {0x8D, {STA, ABS, cycles[0x8D]}},
-    {0x95, {STA, ZPG_X, cycles[0x95]}},
-    {0x9D, {STA, ABS_X, cycles[0x9D]}},
-    {0x99, {STA, ABS_Y, cycles[0x99]}},
-    {0x81, {STA, IND_X, cycles[0x81]}},
-    {0x91, {STA, IND_Y, cycles[0x91]}},
+    {0x85, {STA, "STA", ZPG, cycles[0x85]}},
+    {0x8D, {STA, "STA", ABS, cycles[0x8D]}},
+    {0x95, {STA, "STA", ZPG_X, cycles[0x95]}},
+    {0x9D, {STA, "STA", ABS_X, cycles[0x9D]}},
+    {0x99, {STA, "STA", ABS_Y, cycles[0x99]}},
+    {0x81, {STA, "STA", IND_X, cycles[0x81]}},
+    {0x91, {STA, "STA", IND_Y, cycles[0x91]}},
     // store, STX
-    {0x86, {STX, ZPG, cycles[0x86]}},
-    {0x8E, {STX, ABS, cycles[0x8E]}},
-    {0x96, {STX, ZPG_Y, cycles[0x96]}},
+    {0x86, {STX, "STX", ZPG, cycles[0x86]}},
+    {0x8E, {STX, "STX", ABS, cycles[0x8E]}},
+    {0x96, {STX, "STX", ZPG_Y, cycles[0x96]}},
     // store, STY
-    {0x84, {STY, ZPG, cycles[0x84]}},
-    {0x8C, {STY, ABS, cycles[0x8C]}},
-    {0x94, {STY, ZPG_X, cycles[0x94]}},
+    {0x84, {STY, "STY", ZPG, cycles[0x84]}},
+    {0x8C, {STY, "STY", ABS, cycles[0x8C]}},
+    {0x94, {STY, "STY", ZPG_X, cycles[0x94]}},
     // transfer between registers
-    {0x8A, {TXA, IMPL, cycles[0x8A]}},
-    {0x98, {TYA, IMPL, cycles[0x98]}},
-    {0x9A, {TXS, IMPL, cycles[0x9A]}},
-    {0xA8, {TAY, IMPL, cycles[0xA8]}},
-    {0xAA, {TAX, IMPL, cycles[0xAA]}},
-    {0xB8, {TSX, IMPL, cycles[0xB8]}},
+    {0x8A, {TXA, "TXA", IMPL, cycles[0x8A]}},
+    {0x98, {TYA, "TYA", IMPL, cycles[0x98]}},
+    {0x9A, {TXS, "TXS", IMPL, cycles[0x9A]}},
+    {0xA8, {TAY, "TAY", IMPL, cycles[0xA8]}},
+    {0xAA, {TAX, "TAX", IMPL, cycles[0xAA]}},
+    {0xB8, {TSX, "TSX", IMPL, cycles[0xB8]}},
     // stack
-    {0x08, {PHP, IMPL, cycles[0x08]}},
-    {0x28, {PLP, IMPL, cycles[0x28]}},
-    {0x48, {PHA, IMPL, cycles[0x48]}},
-    {0x68, {PLA, IMPL, cycles[0x68]}},
+    {0x08, {PHP, "PHP", IMPL, cycles[0x08]}},
+    {0x28, {PLP, "PLP", IMPL, cycles[0x28]}},
+    {0x48, {PHA, "PHA", IMPL, cycles[0x48]}},
+    {0x68, {PLA, "PLA", IMPL, cycles[0x68]}},
     // op, ADC
-    {0x69, {ADC, IMD, cycles[0x69]}},
-    {0x65, {ADC, ZPG, cycles[0x65]}},
-    {0x6D, {ADC, ABS, cycles[0x6D]}},
-    {0x75, {ADC, ZPG_X, cycles[0x75]}},
-    {0x7D, {ADC, ABS_X, cycles[0x7D]}},
-    {0x79, {ADC, ABS_Y, cycles[0x79]}},
-    {0x61, {ADC, IND_X, cycles[0x61]}},
-    {0x71, {ADC, IND_Y, cycles[0x71]}},
+    {0x69, {ADC, "ADC", IMD, cycles[0x69]}},
+    {0x65, {ADC, "ADC", ZPG, cycles[0x65]}},
+    {0x6D, {ADC, "ADC", ABS, cycles[0x6D]}},
+    {0x75, {ADC, "ADC", ZPG_X, cycles[0x75]}},
+    {0x7D, {ADC, "ADC", ABS_X, cycles[0x7D]}},
+    {0x79, {ADC, "ADC", ABS_Y, cycles[0x79]}},
+    {0x61, {ADC, "ADC", IND_X, cycles[0x61]}},
+    {0x71, {ADC, "ADC", IND_Y, cycles[0x71]}},
     // op, SBC
-    {0xE9, {SBC, IMD, cycles[0xE9]}},
-    {0xE5, {SBC, ZPG, cycles[0xE5]}},
-    {0xED, {SBC, ABS, cycles[0xED]}},
-    {0xF5, {SBC, ZPG_X, cycles[0xF5]}},
-    {0xFD, {SBC, ABS_X, cycles[0xFD]}},
-    {0xF9, {SBC, ABS_Y, cycles[0xF9]}},
-    {0xE1, {SBC, IND_X, cycles[0xE1]}},
-    {0xF1, {SBC, IND_Y, cycles[0xF1]}},
+    {0xE9, {SBC, "SBC", IMD, cycles[0xE9]}},
+    {0xE5, {SBC, "SBC", ZPG, cycles[0xE5]}},
+    {0xED, {SBC, "SBC", ABS, cycles[0xED]}},
+    {0xF5, {SBC, "SBC", ZPG_X, cycles[0xF5]}},
+    {0xFD, {SBC, "SBC", ABS_X, cycles[0xFD]}},
+    {0xF9, {SBC, "SBC", ABS_Y, cycles[0xF9]}},
+    {0xE1, {SBC, "SBC", IND_X, cycles[0xE1]}},
+    {0xF1, {SBC, "SBC", IND_Y, cycles[0xF1]}},
     // compare, CPX
-    {0xE0, {CPX, IMD, cycles[0xE0]}},
-    {0xE4, {CPX, ZPG, cycles[0xE4]}},
-    {0xEC, {CPX, ABS, cycles[0xEC]}},
+    {0xE0, {CPX, "CPX", IMD, cycles[0xE0]}},
+    {0xE4, {CPX, "CPX", ZPG, cycles[0xE4]}},
+    {0xEC, {CPX, "CPX", ABS, cycles[0xEC]}},
     // compare, CPY
-    {0xC0, {CPY, IMD, cycles[0xC0]}},
-    {0xC4, {CPY, ZPG, cycles[0xC4]}},
-    {0xCC, {CPY, ABS, cycles[0xCC]}},
+    {0xC0, {CPY, "CPY", IMD, cycles[0xC0]}},
+    {0xC4, {CPY, "CPY", ZPG, cycles[0xC4]}},
+    {0xCC, {CPY, "CPY", ABS, cycles[0xCC]}},
     // compare, CMP
-    {0xC9, {CMP, IMD, cycles[0xC9]}},
-    {0xC5, {CMP, ZPG, cycles[0xC5]}},
-    {0xCD, {CMP, ABS, cycles[0xCD]}},
-    {0xD5, {CMP, ZPG_X, cycles[0xD5]}},
-    {0xDD, {CMP, ABS_X, cycles[0xDD]}},
-    {0xD9, {CMP, ABS_Y, cycles[0xD9]}},
-    {0xC1, {CMP, IND_X, cycles[0xC1]}},
-    {0xD1, {CMP, IND_Y, cycles[0xD1]}},
+    {0xC9, {CMP, "CMP", IMD, cycles[0xC9]}},
+    {0xC5, {CMP, "CMP", ZPG, cycles[0xC5]}},
+    {0xCD, {CMP, "CMP", ABS, cycles[0xCD]}},
+    {0xD5, {CMP, "CMP", ZPG_X, cycles[0xD5]}},
+    {0xDD, {CMP, "CMP", ABS_X, cycles[0xDD]}},
+    {0xD9, {CMP, "CMP", ABS_Y, cycles[0xD9]}},
+    {0xC1, {CMP, "CMP", IND_X, cycles[0xC1]}},
+    {0xD1, {CMP, "CMP", IND_Y, cycles[0xD1]}},
     // logical op, AND
-    {0x29, {AND, IMD, cycles[0x29]}},
-    {0x25, {AND, ZPG, cycles[0x25]}},
-    {0x2D, {AND, ABS, cycles[0x2D]}},
-    {0x35, {AND, ZPG_X, cycles[0x35]}},
-    {0x3D, {AND, ABS_X, cycles[0x3D]}},
-    {0x39, {AND, ABS_Y, cycles[0x39]}},
-    {0x21, {AND, IND_X, cycles[0x21]}},
-    {0x31, {AND, IND_Y, cycles[0x31]}},
+    {0x29, {AND, "AND", IMD, cycles[0x29]}},
+    {0x25, {AND, "AND", ZPG, cycles[0x25]}},
+    {0x2D, {AND, "AND", ABS, cycles[0x2D]}},
+    {0x35, {AND, "AND", ZPG_X, cycles[0x35]}},
+    {0x3D, {AND, "AND", ABS_X, cycles[0x3D]}},
+    {0x39, {AND, "AND", ABS_Y, cycles[0x39]}},
+    {0x21, {AND, "AND", IND_X, cycles[0x21]}},
+    {0x31, {AND, "AND", IND_Y, cycles[0x31]}},
     // logical op, EOR
-    {0x49, {EOR, IMD, cycles[0x49]}},
-    {0x45, {EOR, ZPG, cycles[0x45]}},
-    {0x4D, {EOR, ABS, cycles[0x4D]}},
-    {0x55, {EOR, ZPG_X, cycles[0x55]}},
-    {0x5D, {EOR, ABS_X, cycles[0x5D]}},
-    {0x59, {EOR, ABS_Y, cycles[0x59]}},
-    {0x41, {EOR, IND_X, cycles[0x41]}},
-    {0x51, {EOR, IND_Y, cycles[0x51]}},
+    {0x49, {EOR, "EOR", IMD, cycles[0x49]}},
+    {0x45, {EOR, "EOR", ZPG, cycles[0x45]}},
+    {0x4D, {EOR, "EOR", ABS, cycles[0x4D]}},
+    {0x55, {EOR, "EOR", ZPG_X, cycles[0x55]}},
+    {0x5D, {EOR, "EOR", ABS_X, cycles[0x5D]}},
+    {0x59, {EOR, "EOR", ABS_Y, cycles[0x59]}},
+    {0x41, {EOR, "EOR", IND_X, cycles[0x41]}},
+    {0x51, {EOR, "EOR", IND_Y, cycles[0x51]}},
     // logical op, ORA
-    {0x09, {ORA, IMD, cycles[0x09]}},
-    {0x05, {ORA, ZPG, cycles[0x05]}},
-    {0x0D, {ORA, ABS, cycles[0x0D]}},
-    {0x15, {ORA, ZPG_X, cycles[0x15]}},
-    {0x1D, {ORA, ABS_X, cycles[0x1D]}},
-    {0x19, {ORA, ABS_Y, cycles[0x19]}},
-    {0x01, {ORA, IND_X, cycles[0x01]}},
-    {0x11, {ORA, IND_Y, cycles[0x11]}},
+    {0x09, {ORA, "ORA", IMD, cycles[0x09]}},
+    {0x05, {ORA, "ORA", ZPG, cycles[0x05]}},
+    {0x0D, {ORA, "ORA", ABS, cycles[0x0D]}},
+    {0x15, {ORA, "ORA", ZPG_X, cycles[0x15]}},
+    {0x1D, {ORA, "ORA", ABS_X, cycles[0x1D]}},
+    {0x19, {ORA, "ORA", ABS_Y, cycles[0x19]}},
+    {0x01, {ORA, "ORA", IND_X, cycles[0x01]}},
+    {0x11, {ORA, "ORA", IND_Y, cycles[0x11]}},
     // bit inspection
-    {0x24, {BIT, ZPG, cycles[0x24]}},
-    {0x2C, {BIT, ABS, cycles[0x2C]}},
+    {0x24, {BIT, "BIT", ZPG, cycles[0x24]}},
+    {0x2C, {BIT, "BIT", ABS, cycles[0x2C]}},
     // shift rot, ASL
-    {0x0A, {ASL, ACM, cycles[0x0A]}},
-    {0x06, {ASL, ZPG, cycles[0x06]}},
-    {0x0E, {ASL, ABS, cycles[0x0E]}},
-    {0x16, {ASL, ZPG_X, cycles[0x16]}},
-    {0x1E, {ASL, ABS_X, cycles[0x1E]}},
+    {0x0A, {ASL, "ASL", ACM, cycles[0x0A]}},
+    {0x06, {ASL, "ASL", ZPG, cycles[0x06]}},
+    {0x0E, {ASL, "ASL", ABS, cycles[0x0E]}},
+    {0x16, {ASL, "ASL", ZPG_X, cycles[0x16]}},
+    {0x1E, {ASL, "ASL", ABS_X, cycles[0x1E]}},
     // shift rot, LSR
-    {0x4A, {LSR, ACM, cycles[0x4A]}},
-    {0x46, {LSR, ZPG, cycles[0x46]}},
-    {0x4E, {LSR, ABS, cycles[0x4E]}},
-    {0x56, {LSR, ZPG_X, cycles[0x56]}},
-    {0x5E, {LSR, ABS_X, cycles[0x5E]}},
+    {0x4A, {LSR, "LSR", ACM, cycles[0x4A]}},
+    {0x46, {LSR, "LSR", ZPG, cycles[0x46]}},
+    {0x4E, {LSR, "LSR", ABS, cycles[0x4E]}},
+    {0x56, {LSR, "LSR", ZPG_X, cycles[0x56]}},
+    {0x5E, {LSR, "LSR", ABS_X, cycles[0x5E]}},
     // shift rot, ROL
-    {0x2A, {ROL, ACM, cycles[0x2A]}},
-    {0x26, {ROL, ZPG, cycles[0x26]}},
-    {0x2E, {ROL, ABS, cycles[0x2E]}},
-    {0x36, {ROL, ZPG_X, cycles[0x36]}},
-    {0x3E, {ROL, ABS_X, cycles[0x3E]}},
+    {0x2A, {ROL, "ROL", ACM, cycles[0x2A]}},
+    {0x26, {ROL, "ROL", ZPG, cycles[0x26]}},
+    {0x2E, {ROL, "ROL", ABS, cycles[0x2E]}},
+    {0x36, {ROL, "ROL", ZPG_X, cycles[0x36]}},
+    {0x3E, {ROL, "ROL", ABS_X, cycles[0x3E]}},
     // shift rot, ROR
-    {0x6A, {ROR, ACM, cycles[0x6A]}},
-    {0x66, {ROR, ZPG, cycles[0x66]}},
-    {0x6E, {ROR, ABS, cycles[0x6E]}},
-    {0x76, {ROR, ZPG_X, cycles[0x76]}},
-    {0x7E, {ROR, ABS_X, cycles[0x7E]}},
+    {0x6A, {ROR, "ROR", ACM, cycles[0x6A]}},
+    {0x66, {ROR, "ROR", ZPG, cycles[0x66]}},
+    {0x6E, {ROR, "ROR", ABS, cycles[0x6E]}},
+    {0x76, {ROR, "ROR", ZPG_X, cycles[0x76]}},
+    {0x7E, {ROR, "ROR", ABS_X, cycles[0x7E]}},
     // inc
-    {0xE8, {INX, IMPL, cycles[0xE8]}},
-    {0xC8, {INY, IMPL, cycles[0xC8]}},
-    {0xE6, {INC, ZPG, cycles[0xE6]}},
-    {0xEE, {INC, ABS, cycles[0xEE]}},
-    {0xF6, {INC, ZPG_X, cycles[0xF6]}},
-    {0xFE, {INC, ZPG_Y, cycles[0xFE]}},
+    {0xE8, {INX, "INX", IMPL, cycles[0xE8]}},
+    {0xC8, {INY, "INY", IMPL, cycles[0xC8]}},
+    {0xE6, {INC, "INC", ZPG, cycles[0xE6]}},
+    {0xEE, {INC, "INC", ABS, cycles[0xEE]}},
+    {0xF6, {INC, "INC", ZPG_X, cycles[0xF6]}},
+    {0xFE, {INC, "INC", ZPG_Y, cycles[0xFE]}},
     // dec
-    {0xCA, {DEX, IMPL, cycles[0xCA]}},
-    {0x88, {DEY, IMPL, cycles[0x88]}},
-    {0xC6, {DEC, ZPG, cycles[0xC6]}},
-    {0xCE, {DEC, ABS, cycles[0xCE]}},
-    {0xD6, {DEC, ZPG_X, cycles[0xD6]}},
-    {0xDE, {DEC, ZPG_Y, cycles[0xDE]}},
+    {0xCA, {DEX, "DEX", IMPL, cycles[0xCA]}},
+    {0x88, {DEY, "DEY", IMPL, cycles[0x88]}},
+    {0xC6, {DEC, "DEC", ZPG, cycles[0xC6]}},
+    {0xCE, {DEC, "DEC", ABS, cycles[0xCE]}},
+    {0xD6, {DEC, "DEC", ZPG_X, cycles[0xD6]}},
+    {0xDE, {DEC, "DEC", ZPG_Y, cycles[0xDE]}},
     // change flag
-    {0x18, {CLC, IMPL, cycles[0x18]}},
-    {0x58, {CLI, IMPL, cycles[0x58]}},
-    {0xB8, {CLV, IMPL, cycles[0xB8]}},
-    {0x38, {SEC, IMPL, cycles[0x38]}},
-    {0x78, {SEI, IMPL, cycles[0x78]}},
+    {0x18, {CLC, "CLC", IMPL, cycles[0x18]}},
+    {0x58, {CLI, "CLI", IMPL, cycles[0x58]}},
+    {0xB8, {CLV, "CLV", IMPL, cycles[0xB8]}},
+    {0x38, {SEC, "SEC", IMPL, cycles[0x38]}},
+    {0x78, {SEI, "SEI", IMPL, cycles[0x78]}},
     // interrupt
-    {0x00, {BRK, IMPL, cycles[0x00]}},
-    {0x40, {RTI, IMPL, cycles[0x40]}},
-    {0x60, {RTS, IMPL, cycles[0x60]}},
+    {0x00, {BRK, "BRK", IMPL, cycles[0x00]}},
+    {0x40, {RTI, "RTI", IMPL, cycles[0x40]}},
+    {0x60, {RTS, "RTS", IMPL, cycles[0x60]}},
     // jump
-    {0x20, {JSR, ABS, cycles[0x20]}},
-    {0x4C, {JMP, ABS, cycles[0x4C]}},
-    {0x6C, {JMP, ABS_IND, cycles[0x6C]}},
+    {0x20, {JSR, "JSR", ABS, cycles[0x20]}},
+    {0x4C, {JMP, "JMP", ABS, cycles[0x4C]}},
+    {0x6C, {JMP, "JMP", ABS_IND, cycles[0x6C]}},
     // cond branch
-    {0x10, {BPL, REL, cycles[0x10]}},
-    {0x30, {BMI, REL, cycles[0x30]}},
-    {0x50, {BVC, REL, cycles[0x50]}},
-    {0x70, {BVS, REL, cycles[0x70]}},
-    {0x90, {BCC, REL, cycles[0x90]}},
-    {0xB0, {BCS, REL, cycles[0xB0]}},
-    {0xD0, {BNE, REL, cycles[0xD0]}},
-    {0xF0, {BEQ, REL, cycles[0xF0]}},
+    {0x10, {BPL, "BPL", REL, cycles[0x10]}},
+    {0x30, {BMI, "BMI", REL, cycles[0x30]}},
+    {0x50, {BVC, "BVC", REL, cycles[0x50]}},
+    {0x70, {BVS, "BVS", REL, cycles[0x70]}},
+    {0x90, {BCC, "BCC", REL, cycles[0x90]}},
+    {0xB0, {BCS, "BCS", REL, cycles[0xB0]}},
+    {0xD0, {BNE, "BNE", REL, cycles[0xD0]}},
+    {0xF0, {BEQ, "BEQ", REL, cycles[0xF0]}},
     // change flg
-    {0xF8, {SED, IMPL, cycles[0xF8]}},
-    {0xD8, {CLD, IMPL, cycles[0xD8]}},
+    {0xF8, {SED, "SED", IMPL, cycles[0xF8]}},
+    {0xD8, {CLD, "CLD", IMPL, cycles[0xD8]}},
     // nop
-    {0xEA, {NOP, IMPL, cycles[0xEA]}}
+    {0xEA, {NOP, "NOP", IMPL, cycles[0xEA]}}
 
     // TODO:unofficials...
 };
 
-Cpu::Cpu(Ram *ram, uint8_t *prog_rom){
-    this->prog_rom = prog_rom;
+Cpu::Cpu(Ram *ram, Cassette *cas){
+    this->cas = cas;
     this->ram = ram;
     this->reg = DEFAULT_REG;
     dprint("CPU construct");
@@ -232,15 +248,15 @@ DATA Cpu::fetch(SIZE size){
 void Cpu::reset(){
     dprint("reset!!");
     this->reg = DEFAULT_REG;
-    this->reg.PC = 0xFFFC;
+    this->reg.PC = this->read(0xFFFC, WORD).w_data;
 }
 
 void Cpu::reg_dump(){
     dump("##############");
-    dump("A : %d", this->reg.A);
-    dump("X : %d", this->reg.X);
-    dump("Y : %d", this->reg.Y);
-    dump("P : %d", this->reg.P);
+    dump("A : 0x%p", this->reg.A);
+    dump("X : 0x%p", this->reg.X);
+    dump("Y : 0x%p", this->reg.Y);
+    dump("P : 0x%p", this->reg.P);
     printf("[DUMP][REG_STATUS] ");
     if (this->reg.P.carry) printf("CARRY ");
     if (this->reg.P.zero) printf("ZERO ");
@@ -251,8 +267,8 @@ void Cpu::reg_dump(){
     if (this->reg.P.overflow) printf("OVER_FLOW ");
     if (this->reg.P.negative) printf("NEGATIVE ");
     printf("\n");
-    dump("SP : %d", this->reg.SP);
-    dump("PC : %d", this->reg.PC);
+    dump("SP : 0x%p", this->reg.SP);
+    dump("PC : 0x%p", this->reg.PC);
     dump("##############");
 }
 
@@ -279,8 +295,8 @@ void Cpu::pop_PC(){
 }
 
 void Cpu::push_PC(){
-    this.push((this->reg.PC >> 8) & 0xFF);
-    this.push(this->reg.PC & 0xFF);
+    this->push((this->reg.PC >> 8) & 0xFF);
+    this->push(this->reg.PC & 0xFF);
 }
 
 void Cpu::push_reg_status(){
@@ -332,7 +348,7 @@ uint8_t Cpu::read_(uint16_t addr){
     } else if (addr < 0x2000) {
         // mirror
         return this->ram->read(addr - 0x0800);
-    } else if (addr < 0x2008) {
+    } else if (addr < 0x4000) {
         // PPU
         // TODO
     } else if (addr >= 0x4000 && addr < 0x4020) {
@@ -343,6 +359,21 @@ uint8_t Cpu::read_(uint16_t addr){
         } else {
             // APU I/O
             // this.apu.write(addr - 0x4000, data)
+        }
+    } else if (addr >= 0x4020 && addr < 0x6000) {
+        // ext rom
+    } else if (addr >= 0x6000 && addr < 0x8000) {
+        // ext ram
+    } else if (addr >= 0x8000 && addr < 0xFFFF) {
+        // prog rom
+        if (addr < 0xC000) {
+            return this->cas->get_prog_rom()[addr - 0x8000];
+        } else {
+            if (this->cas->get_prog_size() < 0x4000) {
+                return this->cas->get_prog_rom()[addr - 0xC000];
+            } else {
+                return this->cas->get_prog_rom()[addr - 0x8000];
+            }
         }
     } else {
         // invalid
@@ -672,7 +703,9 @@ void Cpu::exec(OPESET opeset, OPERAND operand){
                 uint8_t _data = this->read(data.w_data, BYTE).b_data;
                 this->reg.P.carry = !!(_data & 0x01);
                 this->reg.P.zero = !(_data >> 1);
-                this->write(data.w_data, _data >> 1);
+                DATA temp;
+                temp.b_data = _data >> 1;
+                this->write(data.w_data, temp);
             }
             this->reg.P.negative = false;
             break;
@@ -692,7 +725,9 @@ void Cpu::exec(OPESET opeset, OPERAND operand){
             } else {
                 uint8_t _data = this->read(data.w_data, BYTE).b_data;
                 uint8_t result = (_data << 1) | !!(this->reg.P.carry);
-                this->write(data.w_data, result);
+                DATA temp;
+                temp.b_data = result;
+                this->write(data.w_data, temp);
                 this->reg.P.carry = !!(_data & 0x80);
                 this->set_reg_zero_neg(result);
             }
@@ -709,7 +744,9 @@ void Cpu::exec(OPESET opeset, OPERAND operand){
                 uint8_t _data = this->read(data.w_data, BYTE).b_data;
                 uint8_t result = (_data >> 1) |
                     (this->reg.P.carry) ? 0x80 : 0x00;
-                this->write(data.w_data, result);
+                DATA temp;
+                temp.b_data = result;
+                this->write(data.w_data, temp);
                 this->reg.P.carry = !!(_data & 0x01);
                 this->set_reg_zero_neg(result);
             }
@@ -846,10 +883,10 @@ void Cpu::exec(OPESET opeset, OPERAND operand){
         }
         case BRK : {
             this->reg.PC++;
-            this.push_PC();
-            this.push_reg_status();
+            this->push_PC();
+            this->push_reg_status();
             if (!this->reg.P.interrupt){
-                this->reg.PC = this->read(0xFFFE, WORD);
+                this->reg.PC = this->read(0xFFFE, WORD).w_data;
             }
             this->reg.P.interrupt = true;
             this->reg.PC--;
@@ -869,13 +906,24 @@ void Cpu::exec(OPESET opeset, OPERAND operand){
         // case RLA : {}
         // case SRE : {}
         // case RRA : {} 
+        default : {
+            dprint("invalid op!");
+            exit(1);
+        }
     }
+}
+
+void Cpu::op_dump(OPESET opeset, OPERAND operand){
+    uint16_t data = (operand.size == WORD) ? 
+        operand.data.w_data : operand.data.b_data;
+    printf("$$$$$ [OP_DUMP][PC:0x%x][%s %s 0x%x] $$$$$\n", this->reg.PC, opeset.name, addrmode_dic[opeset.addr_mode], data);
 }
 
 uint8_t Cpu::run(){
     uint8_t opecode = this->fetch(BYTE).b_data;
     OPESET opeset = get_opeset(opecode);
     OPERAND operand = get_operand(opeset);
+    this->op_dump(opeset, operand);
     this->exec(opeset, operand);
     return opeset.cycle + operand.add_cycle;
 }

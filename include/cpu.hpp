@@ -97,6 +97,7 @@ typedef struct {
 
 typedef struct {
     OPECODE opecode;
+    const char* name;
     ADDR_MODE addr_mode;
     uint8_t cycle;
 } OPESET;
@@ -105,10 +106,10 @@ class Cpu {
 private:
     REG reg;
     Ram *ram;
-    uint8_t *prog_rom;
+    Cassette *cas;
     bool has_branched;
 public:
-    Cpu(Ram *ram, uint8_t *prog_rom);
+    Cpu(Ram *ram, Cassette *cassette);
     uint8_t run();
     void exec(OPESET opeset, OPERAND operand);
     DATA fetch(SIZE size);
@@ -127,7 +128,7 @@ public:
     void set_reg_zero_neg(uint8_t result);
     void reset();
     void reg_dump();
-    void op_dump();
+    void op_dump(OPESET opeset, OPERAND operand);
 };
 
 #endif //CPU_H
