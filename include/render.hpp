@@ -9,6 +9,7 @@ class Render {
         uint16_t cycle;
     public:
         Render();
+        void render(image);
         void render_background();
         void render_tile();
 };

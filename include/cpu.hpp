@@ -4,6 +4,8 @@
 #include "common.hpp"
 #include "ram.hpp"
 
+const uint16_t WRAM_SIZE = 0xFFFF;
+
 // status register
 typedef struct {
     uint8_t carry;

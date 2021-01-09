@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <map> 
 #include <string>
+#include <vector>
 #include <string.h>
 // #include <stdexcept>
 using namespace std;

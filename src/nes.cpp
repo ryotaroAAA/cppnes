@@ -1,6 +1,7 @@
 #include "../include/common.hpp"
 #include "../include/cpu.hpp"
 #include "../include/ram.hpp"
+#include "../include/ppu.hpp"
 
 const int NES_HEADER_SIZE = 0x0010;
 const int PROGRAM_ROM_UNIT_SIZE = 0x4000;
@@ -11,13 +12,15 @@ Cassette::Cassette(char* path){
     if (!fin){
         cout << path << " open failed!";
         exit(1);
-    }    
+    }
     uint8_t prog_units;
     uint8_t char_units;
+
     // get size
     fin.seekg(std::ios::end);
     size_t size = fin.tellg();
     fin.seekg(0);
+
     // get rom size
     fin.seekg(4);
     fin.read((char*)&prog_units, sizeof(uint8_t));
@@ -25,12 +28,14 @@ Cassette::Cassette(char* path){
     fin.read((char*)&char_units, sizeof(uint8_t));
     dprint("prog_units : %d", prog_units);
     dprint("char_units : %d", char_units);
+
     // read prg rom
     this->prog_size = (PROGRAM_ROM_UNIT_SIZE) * prog_units;
     dprint("prog_size : %p", this->prog_size);
     fin.seekg(NES_HEADER_SIZE);
     this->prog_rom = new uint8_t[this->prog_size];
     fin.read((char*)this->prog_rom, this->prog_size);
+
     // read chr rom
     this->char_size = (CHARACTER_ROM_UNIT_SIZE) * char_units;
     dprint("char_size : %p", this->char_size);
@@ -57,12 +62,22 @@ uint16_t Cassette::get_char_size(){
 
 int main (int argc, char* argv[]) {
     Cassette cas = Cassette(argv[1]);
-    Ram ram = Ram();
-    Cpu cpu = Cpu(&ram, &cas);
+    Ram wram = Ram(WRAM_SIZE);
+    Ram vram = Ram(VRAM_SIZE);
+    Cpu cpu = Cpu(&wram, &cas);
+    Ppu ppu = Ppu(&vram, &cas);
     cpu.reset();
     cpu.reg_dump();
+
+    // for(;;){
     for(int i=0; i<1000; i++){
-        cpu.run();
+        uint16_t cycle = 0;
+        cycle += cpu.run();
+        IMAGE *image = ppu.run(cycle * 3);
+        if (image != NULL) {
+            renderer.render(image);
+            break;
+        }
     }
     dprint("###");
     return 0;
