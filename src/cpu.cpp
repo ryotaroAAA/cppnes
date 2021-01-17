@@ -43,7 +43,7 @@ map<uint8_t, OPESET> opeset_dic {
     {0xAD, {LDA, "LDA", ABS, cycles[0xAD]}},
     {0xB5, {LDA, "LDA", ZPG_X, cycles[0xB5]}},
     {0xBD, {LDA, "LDA", ABS_X, cycles[0xBD]}},
-    {0xB9, {LDA, "LDA", ABS_Y, cycles[0x89]}},
+    {0xB9, {LDA, "LDA", ABS_Y, cycles[0xB9]}},
     {0xA1, {LDA, "LDA", IND_X, cycles[0xA1]}},
     {0xB1, {LDA, "LDA", IND_Y, cycles[0xB1]}},
     // load, LDX
@@ -221,9 +221,10 @@ map<uint8_t, OPESET> opeset_dic {
     // TODO:unofficials...
 };
 
-Cpu::Cpu(Ram *ram, Cassette *cas){
+Cpu::Cpu(Ram *ram, Cassette *cas, Ppu *ppu){
     this->cas = cas;
     this->ram = ram;
+    this->ppu = ppu;
     this->reg = DEFAULT_REG;
     dprint("CPU construct");
 }
@@ -273,7 +274,7 @@ void Cpu::reg_dump(){
 }
 
 void Cpu::branch(uint16_t addr){
-    this->reg.PC = addr;
+    this->reg.PC = addr-1;
     this->has_branched = true;
 }
 
@@ -350,7 +351,8 @@ uint8_t Cpu::read_(uint16_t addr){
         return this->ram->read(addr - 0x0800);
     } else if (addr < 0x4000) {
         // PPU
-        // TODO
+        // dprint("read:%p, %d", addr, addr);
+        return this->ppu->read((addr - 0x2000) % 8);
     } else if (addr >= 0x4000 && addr < 0x4020) {
         if (addr == 0x4014) {
             // DMA
@@ -383,6 +385,7 @@ uint8_t Cpu::read_(uint16_t addr){
 }
 
 void Cpu::write(uint16_t addr, DATA data){
+    // dprint("write : %p : %d", addr, data.w_data);
     if (addr < 0x0800) {
         // Ram
         this->ram->write(addr, data.b_data);
@@ -391,6 +394,7 @@ void Cpu::write(uint16_t addr, DATA data){
         this->ram->write(addr - 0x0800, data.b_data);
     } else if (addr < 0x2008) {
         // PPU
+        this->ppu->write(addr - 0x2000, data.b_data);
     } else if (addr >= 0x4000 && addr < 0x4020) {
         if (addr == 0x4014) {
             // DMA
@@ -405,10 +409,6 @@ void Cpu::write(uint16_t addr, DATA data){
         dprint("invalid path!");
         exit(1);
     }
-}
-
-OPESET Cpu::get_opeset(uint8_t opecode){
-    return opeset_dic[opecode];
 }
 
 OPERAND Cpu::get_operand(OPESET opeset){
@@ -537,19 +537,19 @@ void Cpu::exec(OPESET opeset, OPERAND operand){
         case STA : {
             DATA _data;
             _data.b_data = this->reg.A;
-            this->write(data.b_data, _data);
+            this->write(data.w_data, _data);
             break;
         }
         case STX : {
             DATA _data;
             _data.b_data = this->reg.X;
-            this->write(data.b_data, _data);
+            this->write(data.w_data, _data);
             break;
         }
         case STY : {
             DATA _data;
             _data.b_data = this->reg.Y;
-            this->write(data.b_data, _data);
+            this->write(data.w_data, _data);
             break;
         }
         // transfer
@@ -831,6 +831,7 @@ void Cpu::exec(OPESET opeset, OPERAND operand){
         }
         case BNE : {
             if (!this->reg.P.zero) {
+                // dprint("%p", data.w_data);
                 this->branch(data.w_data);
             }
             break;
@@ -913,10 +914,15 @@ void Cpu::exec(OPESET opeset, OPERAND operand){
     }
 }
 
+OPESET Cpu::get_opeset(uint8_t opecode){
+    // printf("%p", opecode);
+    return opeset_dic[opecode];
+}
+
 void Cpu::op_dump(OPESET opeset, OPERAND operand){
     uint16_t data = (operand.size == WORD) ? 
         operand.data.w_data : operand.data.b_data;
-    printf("$$$$$ [OP_DUMP][PC:0x%x][%s %s 0x%x] $$$$$\n", this->reg.PC, opeset.name, addrmode_dic[opeset.addr_mode], data);
+    // printf("[OP_DUMP][PC:0x%x][%s %s 0x%x]\n", this->reg.PC, opeset.name, addrmode_dic[opeset.addr_mode], data);
 }
 
 uint8_t Cpu::run(){

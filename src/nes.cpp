@@ -2,83 +2,58 @@
 #include "../include/cpu.hpp"
 #include "../include/ram.hpp"
 #include "../include/ppu.hpp"
-
-const int NES_HEADER_SIZE = 0x0010;
-const int PROGRAM_ROM_UNIT_SIZE = 0x4000;
-const int CHARACTER_ROM_UNIT_SIZE = 0x2000;
-
-Cassette::Cassette(char* path){
-    ifstream fin(path, ios::in|ios::binary);
-    if (!fin){
-        cout << path << " open failed!";
-        exit(1);
-    }
-    uint8_t prog_units;
-    uint8_t char_units;
-
-    // get size
-    fin.seekg(std::ios::end);
-    size_t size = fin.tellg();
-    fin.seekg(0);
-
-    // get rom size
-    fin.seekg(4);
-    fin.read((char*)&prog_units, sizeof(uint8_t));
-    fin.seekg(5);
-    fin.read((char*)&char_units, sizeof(uint8_t));
-    dprint("prog_units : %d", prog_units);
-    dprint("char_units : %d", char_units);
-
-    // read prg rom
-    this->prog_size = (PROGRAM_ROM_UNIT_SIZE) * prog_units;
-    dprint("prog_size : %p", this->prog_size);
-    fin.seekg(NES_HEADER_SIZE);
-    this->prog_rom = new uint8_t[this->prog_size];
-    fin.read((char*)this->prog_rom, this->prog_size);
-
-    // read chr rom
-    this->char_size = (CHARACTER_ROM_UNIT_SIZE) * char_units;
-    dprint("char_size : %p", this->char_size);
-    fin.seekg(NES_HEADER_SIZE + this->prog_size);
-    this->char_rom = new uint8_t[this->char_size];
-    fin.read((char*)this->char_rom, this->char_size);
-}
-
-uint8_t *Cassette::get_prog_rom(){
-    return this->prog_rom;
-}
-
-uint8_t *Cassette::get_char_rom(){
-    return this->char_rom;
-}
-
-uint16_t Cassette::get_prog_size(){
-    return this->prog_size;
-}
-
-uint16_t Cassette::get_char_size(){
-    return this->char_size;
-}
+#include "../include/renderer.hpp"
+#include "sdl/SDLvideo.hpp"
+#include <unistd.h>
 
 int main (int argc, char* argv[]) {
-    Cassette cas = Cassette(argv[1]);
-    Ram wram = Ram(WRAM_SIZE);
-    Ram vram = Ram(VRAM_SIZE);
-    Cpu cpu = Cpu(&wram, &cas);
-    Ppu ppu = Ppu(&vram, &cas);
-    cpu.reset();
-    cpu.reg_dump();
+    try {
+        Cassette cas = Cassette(argv[1]);
+        Ram wram = Ram(WRAM_SIZE);
+        Ram vram = Ram(VRAM_SIZE);
+        Ppu ppu = Ppu(&vram, &cas);
+        Cpu cpu = Cpu(&wram, &cas, &ppu);
+        cpu.reset();
+        cpu.reg_dump();
 
-    // for(;;){
-    for(int i=0; i<1000; i++){
-        uint16_t cycle = 0;
-        cycle += cpu.run();
-        IMAGE *image = ppu.run(cycle * 3);
-        if (image != NULL) {
-            renderer.render(image);
-            break;
+        Renderer renderer = Renderer();
+        SDLvideo video = SDLvideo("DEDENNES", V_SIZE, H_SIZE);
+
+        while(1) {
+        // for(int i=0; i<200; i++){
+            uint16_t cycle = cpu.run();
+                // dprint("#");
+            IMAGE *image = ppu.run(cycle * 3);
+                // dprint("#");
+            // continue;
+            if (image != nullptr) {
+                renderer.render(image);
+                // printf("[%3d]", 0);
+                // for (int j = 0; j < 256; j++) {
+                //     printf("%d", (j / 8)%10);                    
+                // }
+                // printf("\n");
+
+                // for (int i = 0; i < 240; i++) {
+                //     printf("[%3x]", i);
+                //     for (int j = 0; j < 256; j++) {
+                //         printf("%d", renderer.get_result()[i][j] == 0);
+                //     }
+                //     printf("\n");
+                // }
+                video.render(renderer.get_result());
+                // sleep(5);
+                // break;
+            }
         }
+    } catch (std::exception &e) {
+        cout << "Standard Error: " << e.what();
+        cout << std::endl;
+        cout.flush();
+    } catch (...) {
+        cout << "Unknown Error...";
+        cout << std::endl;
+        cout.flush();
     }
-    dprint("###");
     return 0;
 }

@@ -3,6 +3,7 @@
 
 #include "common.hpp"
 #include "ram.hpp"
+#include "cassette.hpp"
 
   /*
     [Control Register1 0x2000]
@@ -53,11 +54,12 @@
 
 const uint16_t SPRITE_RAM_SIZE = 0x0100;
 const uint16_t PALETTE_SIZE = 0x20;
-const uint16_t VRAM_SIZE = 0x4000;
+const uint16_t VRAM_SIZE = 0x0800;
 const uint8_t TILE_SIZE = 8;
-const uint8_t V_SPRITE_NUM = 32;
-const uint8_t H_SPRITE_NUM = 30;
-const uint8_t H_SIZE = 240;
+const uint8_t V_SPRITE_NUM = 30;
+const uint8_t H_SPRITE_NUM = 32;
+const uint16_t H_SIZE = 240;
+const uint16_t V_SIZE = 256;
 const uint16_t H_SIZE_WITH_VBLANK = 262;
 const uint16_t CYCLE_PER_LINE = 341;
 
@@ -70,7 +72,7 @@ typedef struct {
     uint8_t PPUSCROLL;
     uint8_t PPUADDR;
     uint8_t PPUDATA;
-} REG;
+} PPUREG;
 
 typedef struct {
     vector<vector<uint8_t>> data;
@@ -84,6 +86,7 @@ typedef struct {
     uint8_t palette_id;
     uint8_t scroll_x;
     uint8_t scroll_y;
+    uint8_t sprite_id;
 } TILE;
 
 typedef struct {
@@ -95,7 +98,8 @@ typedef struct {
 class Palette : public Ram {
     private:
     public:
-        Palette(uint8_t size);        
+        Palette();        
+        Palette(uint16_t size);        
         bool is_sprite_mirror(uint8_t addr);
         bool is_background_mirror(uint8_t addr);
         uint8_t get_palette_addr(uint16_t addr);
@@ -107,14 +111,14 @@ class Ppu {
     private:
         // variables
         Cassette *cas;
-        Palette *palette;
-        REG reg;
+        Palette palette;
+        PPUREG reg;
         Ram *vram;
-        Ram *charactor_ram;
+        Ram charactor_ram;
         uint8_t vram_buf;
         uint16_t vram_addr;
         uint16_t vram_offset;
-        Ram *sprite_ram;
+        Ram sprite_ram;
         uint16_t sprite_ram_addr;
         uint16_t cycle;
         uint16_t line;
@@ -130,6 +134,7 @@ class Ppu {
         // methods
         uint8_t get_scroll_tile_x();
         uint8_t get_scroll_tile_y();
+        uint8_t get_tile_y();
         uint8_t get_block_id(uint8_t x, uint8_t y);
         uint8_t get_sprite_id(uint8_t x, uint8_t y, uint16_t offset);
         uint8_t get_attribute(uint8_t x, uint8_t y, uint16_t offset);
@@ -140,12 +145,12 @@ class Ppu {
         uint8_t get_background_table_offset();
         bool get_is_background_enable();
         bool get_is_sprite_enable();
+        bool has_sprite_hit();
         void set_sprite_hit();
         void clear_sprite_hit();
         void set_vblank();
         bool get_is_vblank();
         void clear_vblank();
-        bool Ppu::has_sprite_hit();
         uint16_t calc_vram_addr();
         uint8_t vram_read();
         void write_sprite_ram_addr(uint8_t data);

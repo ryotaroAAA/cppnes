@@ -2,7 +2,9 @@
 #define CPU_H
 
 #include "common.hpp"
+#include "cassette.hpp"
 #include "ram.hpp"
+#include "ppu.hpp"
 
 const uint16_t WRAM_SIZE = 0xFFFF;
 
@@ -108,10 +110,11 @@ class Cpu {
 private:
     REG reg;
     Ram *ram;
+    Ppu *ppu;
     Cassette *cas;
     bool has_branched;
 public:
-    Cpu(Ram *ram, Cassette *cassette);
+    Cpu(Ram *ram, Cassette *cassette, Ppu *ppu);
     uint8_t run();
     void exec(OPESET opeset, OPERAND operand);
     DATA fetch(SIZE size);

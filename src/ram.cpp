@@ -1,10 +1,22 @@
 #include "../include/ram.hpp"
 
-Ram::Ram(uint16_t size){
+Ram::Ram(){
     dprint("Ram construct");
+}
+
+Ram::Ram(uint16_t size){
+    dprint("Ram construct size:%p, %u", size, size);
     this->size = size;
     this->ram = new uint8_t[this->size];
-    memset(this->ram, 0, sizeof(this->size));
+    for(int i = 0; i < this->size; i++){
+        this->ram[i] = 0;
+    }
+}
+
+void Ram::dump_ram(){
+    for (int i = 0; i < this->size; i++) {
+        dprint("ram_addr:%p, data:%p %d", i, this->ram[i], this->ram[i]);
+    }
 }
 
 void Ram::reset(){
